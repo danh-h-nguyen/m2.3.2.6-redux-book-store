@@ -1,9 +1,4 @@
-import React, { useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import {
-  fetchReadingList,
-  removeFromReadingList,
-} from "../features/books/bookSlice";
+import React, { useState, useEffect } from "react";
 import {
   Container,
   Button,
@@ -18,66 +13,93 @@ import {
 import { ClipLoader } from "react-spinners";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import api from "../apiService";
 
 const BACKEND_API = process.env.REACT_APP_BACKEND_API;
 
-const ReadingPage = () => {
-  const dispatch = useDispatch();
+const ReadingPageBackUp = () => {
+  const [books, setBooks] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [removedBookId, setRemovedBookId] = useState("");
   const navigate = useNavigate();
-  const {
-    readingList: books,
-    loading,
-    error,
-  } = useSelector((state) => state.books);
-
-  useEffect(() => {
-    dispatch(fetchReadingList());
-  }, [dispatch]);
 
   const handleClickBook = (bookId) => {
     navigate(`/books/${bookId}`);
   };
 
-  const handleRemoveBook = (bookId) => {
-    dispatch(removeFromReadingList(bookId));
-    toast.success("The book has been removed");
+  const removeBook = (bookId) => {
+    setRemovedBookId(bookId);
   };
+
+  useEffect(() => {
+    if (removedBookId) return;
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const res = await api.get(`/favorites`);
+        setBooks(res.data);
+      } catch (error) {
+        toast(error.message);
+      }
+      setLoading(false);
+    };
+    fetchData();
+  }, [removedBookId]);
+
+  useEffect(() => {
+    if (!removedBookId) return;
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        await api.delete(`/favorites/${removedBookId}`);
+        toast.success("The book has been removed");
+        setRemovedBookId("");
+      } catch (error) {
+        toast(error.message);
+      }
+      setLoading(false);
+    };
+    fetchData();
+  }, [removedBookId]);
 
   return (
     <Container>
       <Typography variant="h3" sx={{ textAlign: "center" }} m={3}>
-        Reading List
+        Book Store
       </Typography>
       {loading ? (
         <Box sx={{ textAlign: "center", color: "primary.main" }}>
           <ClipLoader color="inherit" size={150} loading={true} />
         </Box>
-      ) : error ? (
-        <Typography color="error">{error}</Typography>
       ) : (
         <Stack
           direction="row"
           spacing={2}
           justifyContent="space-around"
-          flexWrap="wrap"
+          flexWrap={"wrap"}
         >
           {books.map((book) => (
             <Card
               key={book.id}
-              sx={{ width: "12rem", height: "27rem", marginBottom: "2rem" }}
+              sx={{
+                width: "12rem",
+                height: "27rem",
+                marginBottom: "2rem",
+              }}
             >
-              <CardActionArea onClick={() => handleClickBook(book.id)}>
+              <CardActionArea>
                 <CardMedia
                   component="img"
                   image={`${BACKEND_API}/${book.imageLink}`}
-                  alt={book.title}
+                  alt={`${book.title}`}
+                  onClick={() => handleClickBook(book.id)}
                 />
                 <CardContent>
-                  <Typography gutterBottom variant="h5">
-                    {book.title}
+                  <Typography gutterBottom variant="h5" component="div">
+                    {`${book.title}`}
                   </Typography>
-                  <Typography gutterBottom variant="body1">
-                    {book.author}
+                  <Typography gutterBottom variant="body1" component="div">
+                    {`${book.author}`}
                   </Typography>
                   <Button
                     sx={{
@@ -90,10 +112,7 @@ const ReadingPage = () => {
                       minWidth: "1.5rem",
                     }}
                     size="small"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRemoveBook(book.id);
-                    }}
+                    onClick={() => removeBook(book.id)}
                   >
                     &times;
                   </Button>
@@ -107,4 +126,4 @@ const ReadingPage = () => {
   );
 };
 
-export default ReadingPage;
+export default ReadingPageBackUp;
